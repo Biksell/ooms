@@ -12,3 +12,4 @@ Current features / differences to the `ShareX` + `paint.net` method:
 - Custom hotkey
 - Hideable window frame for cleaner look
 - Optional image saving for preset learning
+- No Alt+Tab required (doesn't focus the application when capturing)
