@@ -8,8 +8,11 @@ from pyautogui import screenshot
 from tkinter import *
 from PIL import ImageTk, Image  
 from os.path import isfile
-from os import system
+from os.path import join
+from os import system, listdir, mkdir
 from time import sleep
+
+currentKeys = ["topleft_x", "topleft_y", "botright_x", "botright_y", "hotkey", "saveImages"]
 
 running = True
 
@@ -29,16 +32,21 @@ hotkey = "print scrn"
 
 def read_config():
     global left, top, shot_width, shot_height, hotkey
+    parser = configparser.RawConfigParser()
     if not isfile("config.txt"):
         write_config()
-    parser = configparser.RawConfigParser()
-    config_path = "config.txt"
-    parser.read(config_path)
-    left = parser.getint("user", "topleft_x")
-    top = parser.getint("user", "topleft_y")
-    shot_width = parser.getint("user", "botright_x") - left
-    shot_height = parser.getint("user", "botright_y") - top
-    hotkey = parser.get("user", "hotkey")
+    try:    
+        config_path = "config.txt"
+        parser.read(config_path)
+        left = parser.getint("user", "topleft_x")
+        top = parser.getint("user", "topleft_y")
+        shot_width = parser.getint("user", "botright_x") - left
+        shot_height = parser.getint("user", "botright_y") - top
+        hotkey = parser.get("user", "hotkey")
+        saving.set(parser.get("user", "saveImages"))
+    except:
+        # If the config file is invalid, reset everything to default (works for now I guess)
+        write_config()
     return
 
 def write_config():
@@ -51,12 +59,13 @@ def write_config():
     parser.set("user", "botright_x", left + shot_width)
     parser.set("user", "botright_y", top + shot_height)
     parser.set("user", "hotkey", hotkey)
+    parser.set("user", "saveImages", saving.get())
     with open(config_path, 'w') as configfile:
         parser.write(configfile)
     return
 
 def takeScreenshot():
-    global img, resized_image, new_image, running
+    global img, resized_image, new_image, running, saving
     while running:
         event = keyboard.read_event()
         if event.event_type == keyboard.KEY_DOWN and event.name == hotkey:
@@ -64,8 +73,29 @@ def takeScreenshot():
             resized_image = img.resize((canvas.winfo_width(), canvas.winfo_height()), Image.LANCZOS)
             new_image = ImageTk.PhotoImage(resized_image)
             canvas.itemconfigure(img_id, image=new_image)
+            if saving.get(): saveScreenshot(img)
     return
             
+def saveScreenshot(imageObject: Image):
+    imgPath = "screenshots"
+    highest = 0
+    try:
+        fileList = listdir(imgPath)
+    except:
+        mkdir(imgPath)
+        fileList = listdir(imgPath)
+    for filename in fileList:
+        file = join(imgPath, filename)
+        if isfile(file):
+            try:
+                number = int(filename.split(".")[0])
+            except:
+                continue
+            highest = number if number > highest else highest
+    imageObject = imageObject.save(join(imgPath, str(highest + 1) + ".jpg"))
+        
+            
+
 
 def setKey():
     global hotkey
@@ -116,15 +146,27 @@ def handleClosing():
     system('taskkill /f /im oblivion_screenshotter.exe') # Probably not the best solution but works for now
     root.destroy()
     sys.exit(0)
+    return
 
-read_config()
+def autoSave():
+    while running:
+        sleep(2)
+        saveCorners()
+        write_config()
+    return
+
+
 threading.Thread(target=takeScreenshot).start()
+threading.Thread(target=autoSave).start()
 
 # Tkinter initialization
 root = Tk()
 root.configure(bg="#10141a")
 root.title("Oblivion Override Screenshot Tool")
 root.overrideredirect(is_frame_hidden)
+saving = BooleanVar()
+saving.set(False)
+read_config()
 
 topFrame = Frame(root, pady=10, bg="#10141a")
 topFrame.pack(side=TOP)
@@ -146,14 +188,21 @@ lblBotCorner.pack(side=LEFT)
 entryBotCorner.pack(side=LEFT)
 entryBotCorner.insert(0, "{},{}".format(left + shot_width, top + shot_height))
 
-btnSaveCorners = Button(topFrame, text = "Save positions", command=lambda: threading.Thread(target=saveCorners).start(), padx=2, pady=2)
+'''
+btnSaveCorners = Button(topFrame, text = "Set positions", command=lambda: threading.Thread(target=saveCorners).start(), padx=2, pady=2)
 btnSaveCorners.pack(side=LEFT)
+'''
 
 # Hotkey
 lblKey = Label(topFrame, text="Current hotkey: {}".format(hotkey), padx=2, pady=2, bg="#10141a", fg="white", font='Arial 10 bold')
 btnSetKey = Button(topFrame, text = "Set new hotkey", command=lambda: threading.Thread(target=setKey).start(), padx=20, pady=2)
 lblKey.pack(side=LEFT)
 btnSetKey.pack(side=LEFT)
+
+# Saving images
+
+checkSaving = Checkbutton(topFrame, text="Save Images", variable=saving, onvalue=True, offvalue=False, padx=2, pady=2)
+checkSaving.pack(side=LEFT)
 
 # Image Frame
 botFrame = Frame(root)

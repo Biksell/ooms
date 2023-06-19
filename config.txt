@@ -4,4 +4,5 @@ topleft_y = 100
 botright_x = 1700
 botright_y = 925
 hotkey = print scrn
+saveimages = True
 
