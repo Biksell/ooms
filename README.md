@@ -11,7 +11,4 @@ Current features / differences to the `ShareX` + `paint.net` method:
 - Resizable window and image
 - Custom hotkey
 - Hideable window frame for cleaner look
-
-Upcoming features:
-- Image saving
-
+- Optional image saving for preset learning
